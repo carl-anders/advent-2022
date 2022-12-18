@@ -66,7 +66,7 @@ impl RoomSolver64 {
         }
         let mut max = 0;
         for curr in UsizeIter::new(to_search) {
-            let walk_time = unsafe { *self.weights.get_unchecked(key * 64 + curr) };
+            let walk_time = self.weights[key * 64 + curr];
             if walk_time < time {
                 let mut ts = to_search;
                 ts.clear(curr);

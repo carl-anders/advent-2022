@@ -104,17 +104,15 @@ impl Day for Day11 {
         
         while x <= 10000 {
             for i in 0..monkeys.len() {
-                unsafe {
-                    while let Some(mut item_worry) = monkeys.get_unchecked_mut(i).items.pop_front() {
-                        item_worry = monkeys.get_unchecked(i).operation.operate(item_worry) % lcm;
-                        let throw_to = if item_worry % monkeys.get_unchecked(i).div_test == 0 {
-                            monkeys.get_unchecked(i).if_true
-                        } else {
-                            monkeys.get_unchecked(i).if_false
-                        };
-                        monkeys.get_unchecked_mut(throw_to).items.push_back(item_worry);
-                        monkeys.get_unchecked_mut(i).throws += 1;
-                    }
+                while let Some(mut item_worry) = monkeys[i].items.pop_front() {
+                    item_worry = monkeys[i].operation.operate(item_worry) % lcm;
+                    let throw_to = if item_worry % monkeys[i].div_test == 0 {
+                        monkeys[i].if_true
+                    } else {
+                        monkeys[i].if_false
+                    };
+                    monkeys[throw_to].items.push_back(item_worry);
+                    monkeys[i].throws += 1;
                 }
             }
             if !found_cycle {
