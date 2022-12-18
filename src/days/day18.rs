@@ -1,15 +1,29 @@
 use super::day::Day;
-use ahash::HashSet;
+use ahash::{HashSet, HashSetExt};
 use anyhow::Result;
 use itertools::Itertools;
-use pathfinding::prelude::dijkstra;
-use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Point {
     x: i8,
     y: i8,
     z: i8,
+}
+impl Point {
+    const fn new(pos: (i8, i8, i8)) -> Self {
+        Self {
+            x: pos.0,
+            y: pos.1,
+            z: pos.2,
+        }
+    }
+    const fn add(self, other: (i8, i8, i8)) -> Self {
+        Self {
+            x: self.x + other.0,
+            y: self.y + other.1,
+            z: self.z + other.2,
+        }
+    }
 }
 
 pub struct Day18;
@@ -36,87 +50,61 @@ impl Day for Day18 {
             .iter()
             .map(|p| {
                 [
-                    [0, 0, 1],
-                    [0, 0, -1],
-                    [0, 1, 0],
-                    [0, -1, 0],
-                    [1, 0, 0],
-                    [-1, 0, 0],
+                    (0, 0, 1),
+                    (0, 0, -1),
+                    (0, 1, 0),
+                    (0, -1, 0),
+                    (1, 0, 0),
+                    (-1, 0, 0),
                 ]
                 .iter()
-                .map(|d| {
-                    usize::from(!points.contains(&Point {
-                        x: p.x + d[0],
-                        y: p.y + d[1],
-                        z: p.z + d[2],
-                    }))
-                })
+                .map(|&d| usize::from(!points.contains(&p.add(d))))
                 .sum::<usize>()
             })
             .sum()
     }
     fn second(points: Self::Parsed) -> Self::Output {
-        let max_x = points.iter().map(|p| p.x).max().unwrap();
-        let max_y = points.iter().map(|p| p.y).max().unwrap();
-        let max_z = points.iter().map(|p| p.z).max().unwrap();
+        let mut xs = points.iter().map(|p| p.x).minmax().into_option().unwrap();
+        let mut ys = points.iter().map(|p| p.y).minmax().into_option().unwrap();
+        let mut zs = points.iter().map(|p| p.z).minmax().into_option().unwrap();
 
-        let trapped_air: HashSet<Point> = (0..max_x)
-            .into_par_iter()
-            .flat_map(|x| {
-                let mut trapped_air: Vec<Point> = Vec::new();
-                for y in 0..max_y {
-                    for z in 0..max_z {
-                        let self_point = Point { x, y, z };
-                        if !points.contains(&self_point) {
-                            let result = dijkstra(
-                                &self_point,
-                                |p| {
-                                    let v: Vec<(Point, u8)> = [
-                                        [0, 0, 1],
-                                        [0, 0, -1],
-                                        [0, 1, 0],
-                                        [0, -1, 0],
-                                        [1, 0, 0],
-                                        [-1, 0, 0],
-                                    ]
-                                    .iter()
-                                    .filter_map(|d| {
-                                        let point = Point {
-                                            x: p.x + d[0],
-                                            y: p.y + d[1],
-                                            z: p.z + d[2],
-                                        };
-                                        if points.contains(&point) {
-                                            None
-                                        } else {
-                                            Some((point, 1))
-                                        }
-                                    })
-                                    .collect();
-                                    v
-                                },
-                                |p| {
-                                    p.x > max_x
-                                        || p.x < 0
-                                        || p.y > max_y
-                                        || p.y < 0
-                                        || p.z > max_z
-                                        || p.z < 0
-                                },
-                            );
-                            if result.is_none() {
-                                trapped_air.push(self_point);
-                            }
-                        }
+        xs = (xs.0 - 1, xs.1 + 1);
+        ys = (ys.0 - 1, ys.1 + 1);
+        zs = (zs.0 - 1, zs.1 + 1);
+
+        let mut to_visit = vec![Point::new((xs.0, ys.0, zs.0))];
+        let mut visited = HashSet::new();
+        visited.insert(to_visit[0]);
+
+        let mut touched_walls = 0;
+
+        while let Some(visit) = to_visit.pop() {
+            for offset in [
+                (0, 0, 1),
+                (0, 0, -1),
+                (0, 1, 0),
+                (0, -1, 0),
+                (1, 0, 0),
+                (-1, 0, 0),
+            ] {
+                let next_visit = visit.add(offset);
+                if xs.0 <= next_visit.x
+                    && next_visit.x <= xs.1
+                    && ys.0 <= next_visit.y
+                    && next_visit.y <= ys.1
+                    && zs.0 <= next_visit.z
+                    && next_visit.z <= zs.1
+                {
+                    if points.contains(&next_visit) {
+                        touched_walls += 1;
+                    } else if !visited.contains(&next_visit) {
+                        to_visit.push(next_visit);
+                        visited.insert(next_visit);
                     }
                 }
-                trapped_air
-            })
-            .collect();
-
-        let first_area = Self::first(points);
-        let trapped_area = Self::first(trapped_air);
-        first_area - trapped_area
+            }
+        }
+        touched_walls
     }
 }
 
