@@ -1,3 +1,4 @@
+#![allow(clippy::cast_lossless, clippy::cast_possible_truncation)]
 use super::day::Day;
 use ahash::{HashSet, HashSetExt};
 use anyhow::Result;
@@ -20,17 +21,17 @@ pub struct Money {
     geode: u32,
 }
 impl Money {
-    fn affords(&self, other: Self) -> bool {
+    const fn affords(&self, other: Self) -> bool {
         self.ore >= other.ore
             && self.clay >= other.clay
             && self.obsidian >= other.obsidian
             && self.geode >= other.geode
     }
 }
-impl std::ops::Add<Money> for Money {
-    type Output = Money;
-    fn add(self, other: Self) -> Money {
-        Money {
+impl std::ops::Add<Self> for Money {
+    type Output = Self;
+    fn add(self, other: Self) -> Self {
+        Self {
             ore: self.ore + other.ore,
             clay: self.clay + other.clay,
             obsidian: self.obsidian + other.obsidian,
@@ -38,10 +39,10 @@ impl std::ops::Add<Money> for Money {
         }
     }
 }
-impl std::ops::Sub<Money> for Money {
-    type Output = Money;
-    fn sub(self, other: Self) -> Money {
-        Money {
+impl std::ops::Sub<Self> for Money {
+    type Output = Self;
+    fn sub(self, other: Self) -> Self {
+        Self {
             ore: self.ore - other.ore,
             clay: self.clay - other.clay,
             obsidian: self.obsidian - other.obsidian,
@@ -50,9 +51,9 @@ impl std::ops::Sub<Money> for Money {
     }
 }
 impl std::ops::Mul<u32> for Money {
-    type Output = Money;
-    fn mul(self, other: u32) -> Money {
-        Money {
+    type Output = Self;
+    fn mul(self, other: u32) -> Self {
+        Self {
             ore: self.ore * other,
             clay: self.clay * other,
             obsidian: self.obsidian * other,
@@ -69,27 +70,27 @@ struct Robots {
     geode: u8,
 }
 impl Robots {
-    fn add_ore(self) -> Self {
+    const fn add_ore(self) -> Self {
         let mut new = self;
         new.ore += 1;
         new
     }
-    fn add_clay(self) -> Self {
+    const fn add_clay(self) -> Self {
         let mut new = self;
         new.clay += 1;
         new
     }
-    fn add_obsidian(self) -> Self {
+    const fn add_obsidian(self) -> Self {
         let mut new = self;
         new.obsidian += 1;
         new
     }
-    fn add_geode(self) -> Self {
+    const fn add_geode(self) -> Self {
         let mut new = self;
         new.geode += 1;
         new
     }
-    fn mine(self) -> Money {
+    const fn mine(self) -> Money {
         Money {
             ore: self.ore as u32,
             clay: self.clay as u32,
@@ -99,7 +100,7 @@ impl Robots {
     }
 }
 
-fn maxvals(time: u32, bots: u32) -> u32 {
+const fn maxvals(time: u32, bots: u32) -> u32 {
     if time <= 1 {
         return bots * time;
     }
@@ -258,22 +259,14 @@ impl Day for Day19 {
     fn first(factories: Self::Parsed) -> Self::Output {
         factories
             .par_iter()
-            .map(|factory| {
-                let max = factory_loop(*factory, 24);
-                //println!("Factory {} has max: {max}", factory.id);
-                max * factory.id
-            })
+            .map(|factory| factory_loop(*factory, 24) * factory.id)
             .sum()
     }
     fn second(factories: Self::Parsed) -> Self::Output {
         factories
             .par_iter()
             .take(3)
-            .map(|factory| {
-                let max = factory_loop(*factory, 32);
-                //println!("Factory {} has max: {max}", factory.id);
-                max
-            })
+            .map(|factory| factory_loop(*factory, 32))
             .product()
     }
 }
