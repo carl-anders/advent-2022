@@ -35,7 +35,7 @@ fn key(data: &VecDeque<(i64, usize)>) -> i64 {
     let zero_pos = data.iter().position(|(d, _)| *d == 0).unwrap();
     [1000, 2000, 3000]
         .iter()
-        .map(|d| data[(zero_pos + d).rem_euclid(data.len())].0)
+        .map(|d| data[(zero_pos + d) % data.len()].0)
         .sum()
 }
 
