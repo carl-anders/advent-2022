@@ -1,4 +1,5 @@
 pub mod helpers;
+pub mod grid2d;
 pub mod day;
 pub mod day1;
 pub mod day2;

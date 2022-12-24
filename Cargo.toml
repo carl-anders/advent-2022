@@ -17,6 +17,7 @@ ndarray = "0.15"
 lazy_static = "1.4.0"
 regex = "1.7"
 gif = "0.12"
+num-traits = "0.2"
 
 #memoize = "0.3"
 #bitvec = "0.22"
@@ -25,4 +26,5 @@ gif = "0.12"
 [profile.release]
 lto = "fat"
 panic = "abort"
+incremental = true
 #debug = true
