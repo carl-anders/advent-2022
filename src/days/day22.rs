@@ -1,5 +1,8 @@
+use std::{borrow::Cow, fs::File};
+
 use super::day::Day;
 use anyhow::Result;
+use gif::{Encoder, Frame, Repeat};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use ndarray::Array2;
@@ -65,6 +68,47 @@ lazy_static! {
     static ref RE: Regex = Regex::new(r"(\d+)|([A-Z])").unwrap();
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum IP {
+    Right = 0,
+    Bottom = 1,
+    Left = 2,
+    Top = 3,
+}
+
+fn _w_frame(encoder: &mut Encoder<&mut File>, map: &Array2<Point>) {
+    let (width, height) = (450, 600);
+    let mut state = [0; 450 * 600];
+    let mut frame = Frame::<'_> {
+        width,
+        height,
+        ..Default::default()
+    };
+    for y in 0..200usize {
+        for x in 0..150usize {
+            let point = map[[y, x]];
+            let draw = match point {
+                Point::Nothing => [[0; 3]; 3],
+                Point::Open => [[1; 3]; 3],
+                Point::Wall => [[2; 3]; 3],
+                Point::DrawRight => [[1, 3, 1], [1, 1, 3], [1, 3, 1]],
+                Point::DrawDown => [[1, 1, 1], [3, 1, 3], [1, 3, 1]],
+                Point::DrawLeft => [[1, 3, 1], [3, 1, 1], [1, 3, 1]],
+                Point::DrawUp => [[1, 3, 1], [3, 1, 3], [1, 1, 1]],
+            };
+            if point != Point::Nothing {
+                for dy in 0..3 {
+                    for dx in 0..3 {
+                        state[((y * 3 + dy) * width as usize + x * 3 + dx)] = draw[dy][dx];
+                    }
+                }
+            }
+        }
+    }
+    frame.buffer = Cow::Borrowed(&state);
+    encoder.write_frame(&frame).unwrap();
+}
+
 pub struct Day22;
 impl Day for Day22 {
     type Parsed = (Array2<Point>, Vec<Movement>);
@@ -72,7 +116,7 @@ impl Day for Day22 {
 
     fn parse(input: String) -> Result<Self::Parsed> {
         let (map, path) = input.split_once("\n\n").unwrap();
-        let width = map.lines().map(|l| l.len()).max().unwrap();
+        let width = map.lines().map(str::len).max().unwrap();
         let height = map.lines().count();
         let mut array = Array2::<Point>::default((height, width));
         for (y, line) in map.lines().enumerate() {
@@ -123,60 +167,18 @@ impl Day for Day22 {
     }
     fn second((array, movements): Self::Parsed) -> Self::Output {
         let (height, width) = array.dim();
-        #[derive(Debug, Clone, Copy)]
-        pub enum IP {
-            Right = 0,
-            Bottom = 1,
-            Left = 2,
-            Top = 3,
-        }
 
         let mut draw_array = array.clone();
-
-        use gif::{Encoder, Frame, Repeat};
-        use std::borrow::Cow;
-        use std::fs::File;
         // empty: fffcf2 - 0
         // bg: ccc5b9 - 1
         // rock: 403d39 - 2
         // arrow: eb5e28 -3
         let color_map = &[
-            0xFF, 0xFc, 0xF2, 0xCC, 0xC5, 0xB9, 0x40, 0x3d, 0x39, 0xEB, 0x5E, 0x28,
+            0xFF, 0xFC, 0xF2, 0xCC, 0xC5, 0xB9, 0x40, 0x3d, 0x39, 0xEB, 0x5E, 0x28,
         ];
         let mut image = File::create("day22_anim.gif").unwrap();
         let mut encoder = Encoder::new(&mut image, 450, 600, color_map).unwrap();
         encoder.set_repeat(Repeat::Infinite).unwrap();
-
-        fn _w_frame(encoder: &mut Encoder<&mut File>, map: &Array2<Point>) {
-            let (width, height) = (450, 600);
-            let mut state = [0; 450 * 600];
-            let mut frame = Frame::default();
-            frame.width = width;
-            frame.height = height;
-            for y in 0..(200 as usize) {
-                for x in 0..(150 as usize) {
-                    let point = map[[y as usize, x as usize]];
-                    let draw = match point {
-                        Point::Nothing => [[0; 3]; 3],
-                        Point::Open => [[1; 3]; 3],
-                        Point::Wall => [[2; 3]; 3],
-                        Point::DrawRight => [[1, 3, 1], [1, 1, 3], [1, 3, 1]],
-                        Point::DrawDown => [[1, 1, 1], [3, 1, 3], [1, 3, 1]],
-                        Point::DrawLeft => [[1, 3, 1], [3, 1, 1], [1, 3, 1]],
-                        Point::DrawUp => [[1, 3, 1], [3, 1, 3], [1, 1, 1]],
-                    };
-                    if point != Point::Nothing {
-                        for dy in 0..3 {
-                            for dx in 0..3 {
-                                state[((y * 3 + dy) * width as usize + x * 3 + dx)] = draw[dy][dx];
-                            }
-                        }
-                    }
-                }
-            }
-            frame.buffer = Cow::Borrowed(&state);
-            encoder.write_frame(&frame).unwrap();
-        }
 
         let portals = [
             // (right, down, left, up)
@@ -242,7 +244,7 @@ impl Day for Day22 {
                                     IP::Top => {
                                         // Untested direction. Might not work.
                                         try_position.1[0] = 0;
-                                        try_position.1[1] = position.1[0]
+                                        try_position.1[1] = position.1[0];
                                     }
                                 }
                                 try_direction.turn_right(portal.1 as usize + 2);
@@ -309,7 +311,7 @@ impl Day for Day22 {
                                     }
                                     IP::Top => {
                                         try_position.1[0] = 0;
-                                        try_position.1[1] = position.1[0]
+                                        try_position.1[1] = position.1[0];
                                     }
                                 }
                                 try_direction.turn_right(portal.1 as usize);
@@ -355,7 +357,9 @@ impl Day for Day22 {
                             }
                         }
                     }
-                    if try_position != position && array[sector_pos_to_pos(try_position)] == Point::Open {
+                    if try_position != position
+                        && array[sector_pos_to_pos(try_position)] == Point::Open
+                    {
                         draw_array[sector_pos_to_pos(position)] = match direction {
                             Direction::Right => Point::DrawRight,
                             Direction::Down => Point::DrawDown,
@@ -405,7 +409,6 @@ fn move_by(current_pos: &mut [usize; 2], direction: Direction, array: &Array2<Po
         }
 
         match array[look_pos] {
-            Point::Nothing => {}
             Point::Open => {
                 *current_pos = look_pos;
                 break;
