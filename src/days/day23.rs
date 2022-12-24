@@ -1,3 +1,4 @@
+#![allow(clippy::cast_possible_wrap)]
 use super::day::Day;
 use ahash::{HashMap, HashMapExt};
 use anyhow::Result;
@@ -5,7 +6,7 @@ use itertools::Itertools;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Elf {
-    proposed_move: Option<(isize, isize)>,
+    proposed: Option<(isize, isize)>,
 }
 
 pub struct Day23;
@@ -19,12 +20,7 @@ impl Day for Day23 {
             for (x, &c) in line.as_bytes().iter().enumerate() {
                 let (x, y) = (x as isize, y as isize);
                 if c == b'#' {
-                    map.insert(
-                        (x, y),
-                        Elf {
-                            proposed_move: None,
-                        },
-                    );
+                    map.insert((x, y), Elf { proposed: None });
                 }
             }
         }
@@ -42,95 +38,65 @@ impl Day for Day23 {
     }
     fn second(mut map: Self::Parsed) -> Self::Output {
         let mut test_direction = 0;
-        let mut round = 0;
-        loop {
-            round += 1;
+        for round in 0.. {
             if elf_round(&mut map, &mut test_direction) == 0 {
-                break;
+                return round + 1;
             }
         }
-        round
+        0
     }
 }
+const DIRS: [(isize, isize); 8] = [
+    (0, -1),
+    (1, -1),
+    (1, 0),
+    (1, 1),
+    (0, 1),
+    (-1, 1),
+    (-1, 0),
+    (-1, -1),
+];
+const PATHS: [[usize; 3]; 4] = [[7, 0, 1], [3, 4, 5], [5, 6, 7], [1, 2, 3]];
 
-fn elf_round(map: &mut HashMap<(isize, isize), Elf>, test_direction: &mut i32) -> usize {
-    let mut proposed_moves: HashMap<(isize, isize), usize> = HashMap::new();
-    let keys: Vec<_> = map.clone().into_keys().map(|pos| pos).collect();
-    for pos in &keys {
-        map.get_mut(pos).unwrap().proposed_move = None;
-        let n = map.contains_key(&(pos.0, pos.1 - 1));
-        let ne = map.contains_key(&(pos.0 + 1, pos.1 - 1));
-        let e = map.contains_key(&(pos.0 + 1, pos.1));
-        let se = map.contains_key(&(pos.0 + 1, pos.1 + 1));
-        let s = map.contains_key(&(pos.0, pos.1 + 1));
-        let sw = map.contains_key(&(pos.0 - 1, pos.1 + 1));
-        let w = map.contains_key(&(pos.0 - 1, pos.1));
-        let nw = map.contains_key(&(pos.0 - 1, pos.1 - 1));
-        if n || ne || e || se || s || sw || w || nw {
-            let proposed = match *test_direction {
-                0 => {
-                    if !nw && !n && !ne {
-                        Some((pos.0, pos.1 - 1))
-                    } else if !sw && !s && !se {
-                        Some((pos.0, pos.1 + 1))
-                    } else if !nw && !w && !sw {
-                        Some((pos.0 - 1, pos.1))
-                    } else if !ne && !e && !se {
-                        Some((pos.0 + 1, pos.1))
-                    } else {
-                        None
-                    }
-                }
-                1 => {
-                    if !sw && !s && !se {
-                        Some((pos.0, pos.1 + 1))
-                    } else if !nw && !w && !sw {
-                        Some((pos.0 - 1, pos.1))
-                    } else if !ne && !e && !se {
-                        Some((pos.0 + 1, pos.1))
-                    } else if !nw && !n && !ne {
-                        Some((pos.0, pos.1 - 1))
-                    } else {
-                        None
-                    }
-                }
-                2 => {
-                    if !nw && !w && !sw {
-                        Some((pos.0 - 1, pos.1))
-                    } else if !ne && !e && !se {
-                        Some((pos.0 + 1, pos.1))
-                    } else if !nw && !n && !ne {
-                        Some((pos.0, pos.1 - 1))
-                    } else if !sw && !s && !se {
-                        Some((pos.0, pos.1 + 1))
-                    } else {
-                        None
-                    }
-                }
-                _ => {
-                    if !ne && !e && !se {
-                        Some((pos.0 + 1, pos.1))
-                    } else if !nw && !n && !ne {
-                        Some((pos.0, pos.1 - 1))
-                    } else if !sw && !s && !se {
-                        Some((pos.0, pos.1 + 1))
-                    } else if !nw && !w && !sw {
-                        Some((pos.0 - 1, pos.1))
-                    } else {
-                        None
-                    }
-                }
-            };
-            if let Some(new_pos) = proposed {
-                *proposed_moves.entry(new_pos).or_default() += 1;
-                map.get_mut(pos).unwrap().proposed_move = Some(new_pos);
-            }
+fn elf_possible_move(
+    map: &HashMap<(isize, isize), Elf>,
+    pos: (isize, isize),
+    test: usize,
+) -> Option<(isize, isize)> {
+    let checks: [bool; 8] = DIRS
+        .into_iter()
+        .map(|(x, y)| map.contains_key(&(pos.0 + x, pos.1 + y)))
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+    if checks.iter().all(|c| !c) {
+        return None;
+    }
+    for dir in [
+        PATHS[test % 4],
+        PATHS[(test + 1) % 4],
+        PATHS[(test + 2) % 4],
+        PATHS[(test + 3) % 4],
+    ] {
+        if !checks[dir[0]] && !checks[dir[1]] && !checks[dir[2]] {
+            return Some((pos.0 + DIRS[dir[1]].0, pos.1 + DIRS[dir[1]].1));
         }
     }
-    *test_direction = (*test_direction + 1) % 4;
+    None
+}
+fn elf_round(map: &mut HashMap<(isize, isize), Elf>, test_direction: &mut usize) -> usize {
+    let mut proposed_moves: HashMap<(isize, isize), usize> = HashMap::new();
+    let keys: Vec<_> = map.clone().into_keys().collect();
+    for pos in &keys {
+        let mov = elf_possible_move(map, *pos, *test_direction);
+        map.get_mut(pos).unwrap().proposed = mov;
+        if let Some(new_pos) = mov {
+            *proposed_moves.entry(new_pos).or_default() += 1;
+        }
+    }
     proposed_moves.retain(|_, num| *num == 1);
     for pos in &keys {
-        if let Some(mov) = map.get(pos).unwrap().proposed_move {
+        if let Some(mov) = map.get(pos).unwrap().proposed {
             if proposed_moves.contains_key(&mov) {
                 if let Some(elf) = map.remove(pos) {
                     map.insert(mov, elf);
@@ -138,6 +104,7 @@ fn elf_round(map: &mut HashMap<(isize, isize), Elf>, test_direction: &mut i32) -
             }
         }
     }
+    *test_direction = (*test_direction + 1) % 4;
     proposed_moves.len()
 }
 
