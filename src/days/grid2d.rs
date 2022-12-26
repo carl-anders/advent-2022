@@ -109,6 +109,49 @@ impl<T: SubAssign> SubAssign for Position2D<T> {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum Direction8Way {
+    N = 0,
+    NE = 1,
+    E = 2,
+    SE = 3,
+    S = 4,
+    SW = 5,
+    W = 6,
+    NW = 7,
+}
+impl Direction8Way {
+    pub const UP: Self = Self::N;
+    pub const RIGHT: Self = Self::E;
+    pub const DOWN: Self = Self::S;
+    pub const LEFT: Self = Self::W;
+    pub const EVERY: [Self; 8] = [
+        Self::N,
+        Self::NE,
+        Self::E,
+        Self::SE,
+        Self::S,
+        Self::SW,
+        Self::W,
+        Self::NW,
+    ];
+}
+impl<T: Copy + One + Add<Output = T> + Sub<Output = T>> Add<Direction8Way> for Position2D<T> {
+    type Output = Self;
+    fn add(self, other: Direction8Way) -> Self {
+        match other {
+            Direction8Way::N => self.sub_y(T::one()),
+            Direction8Way::NE => self.sub_y(T::one()).add_x(T::one()),
+            Direction8Way::E => self.add_x(T::one()),
+            Direction8Way::SE => self.add_y(T::one()).add_x(T::one()),
+            Direction8Way::S => self.add_y(T::one()),
+            Direction8Way::SW => self.add_y(T::one()).sub_x(T::one()),
+            Direction8Way::W => self.sub_x(T::one()),
+            Direction8Way::NW => self.sub_y(T::one()).sub_x(T::one()),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Direction4Way {
     Right = 0,
     Down = 1,

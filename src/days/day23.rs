@@ -1,74 +1,73 @@
 #![allow(clippy::cast_possible_wrap)]
-use super::day::Day;
-use ahash::{HashMap, HashMapExt};
+use super::{
+    day::Day,
+    grid2d::{Direction8Way, Position2D},
+};
+use ahash::{HashMap, HashMapExt, HashSet};
 use anyhow::Result;
 use itertools::Itertools;
+use smallvec::SmallVec;
 
-#[derive(Debug, Clone, Copy)]
-pub struct Elf {
-    proposed: Option<(isize, isize)>,
-}
+type Pos = Position2D<isize>;
+type Dir = Direction8Way;
 
 pub struct Day23;
 impl Day for Day23 {
-    type Parsed = HashMap<(isize, isize), Elf>;
+    type Parsed = HashSet<Pos>;
     type Output = usize;
 
     fn parse(input: String) -> Result<Self::Parsed> {
-        let mut map = HashMap::new();
-        for (y, line) in input.lines().enumerate() {
-            for (x, &c) in line.as_bytes().iter().enumerate() {
-                let (x, y) = (x as isize, y as isize);
-                if c == b'#' {
-                    map.insert((x, y), Elf { proposed: None });
-                }
-            }
-        }
-        Ok(map)
+        Ok(input
+            .lines()
+            .enumerate()
+            .flat_map(|(y, line)| {
+                line.as_bytes()
+                    .iter()
+                    .enumerate()
+                    .filter_map(move |(x, &c)| {
+                        (c == b'#').then(|| Pos::new(x as isize, y as isize))
+                    })
+            })
+            .collect())
     }
     fn first(mut map: Self::Parsed) -> Self::Output {
         let mut test_direction = 0;
         for _ in 0..10 {
             elf_round(&mut map, &mut test_direction);
         }
-        let x_min_max = map.keys().minmax_by_key(|k| k.0).into_option().unwrap();
-        let y_min_max = map.keys().minmax_by_key(|k| k.1).into_option().unwrap();
-        let area = (x_min_max.1 .0 - x_min_max.0 .0 + 1) * (y_min_max.1 .1 - y_min_max.0 .1 + 1);
-        area as usize - map.len()
+        let xmm = map.iter().map(|k| k.x).minmax().into_option().unwrap();
+        let ymm = map.iter().map(|k| k.y).minmax().into_option().unwrap();
+        ((xmm.1 - xmm.0 + 1) * (ymm.1 - ymm.0 + 1)) as usize - map.len()
     }
     fn second(mut map: Self::Parsed) -> Self::Output {
         let mut test_direction = 0;
-        for round in 0.. {
+        for round in 1.. {
             if elf_round(&mut map, &mut test_direction) == 0 {
-                return round + 1;
+                return round;
             }
         }
         0
     }
 }
-const DIRS: [(isize, isize); 8] = [
-    (0, -1),
-    (1, -1),
-    (1, 0),
-    (1, 1),
-    (0, 1),
-    (-1, 1),
-    (-1, 0),
-    (-1, -1),
+const PATHS: [[Dir; 3]; 4] = [
+    [Dir::NW, Dir::N, Dir::NE],
+    [Dir::SE, Dir::S, Dir::SW],
+    [Dir::SW, Dir::W, Dir::NW],
+    [Dir::NE, Dir::E, Dir::SE],
 ];
-const PATHS: [[usize; 3]; 4] = [[7, 0, 1], [3, 4, 5], [5, 6, 7], [1, 2, 3]];
-
-fn elf_possible_move(
-    map: &HashMap<(isize, isize), Elf>,
-    pos: (isize, isize),
-    test: usize,
-) -> Option<(isize, isize)> {
-    let checks: [bool; 8] = DIRS
-        .into_iter()
-        .map(|(x, y)| map.contains_key(&(pos.0 + x, pos.1 + y)))
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap();
+fn elf_possible_move(map: &HashSet<Pos>, pos: Pos, test: usize) -> Option<Pos> {
+    // Equivalent code but slower:
+    // let checks = Dir::EVERY.map(|dir| map.contains(&(pos + dir)));
+    let checks = [
+        map.contains(&(pos + Dir::N)),
+        map.contains(&(pos + Dir::NE)),
+        map.contains(&(pos + Dir::E)),
+        map.contains(&(pos + Dir::SE)),
+        map.contains(&(pos + Dir::S)),
+        map.contains(&(pos + Dir::SW)),
+        map.contains(&(pos + Dir::W)),
+        map.contains(&(pos + Dir::NW)),
+    ];
     if checks.iter().all(|c| !c) {
         return None;
     }
@@ -78,34 +77,27 @@ fn elf_possible_move(
         PATHS[(test + 2) % 4],
         PATHS[(test + 3) % 4],
     ] {
-        if !checks[dir[0]] && !checks[dir[1]] && !checks[dir[2]] {
-            return Some((pos.0 + DIRS[dir[1]].0, pos.1 + DIRS[dir[1]].1));
+        if !checks[dir[0] as usize] && !checks[dir[1] as usize] && !checks[dir[2] as usize] {
+            return Some(pos + dir[1]);
         }
     }
     None
 }
-fn elf_round(map: &mut HashMap<(isize, isize), Elf>, test_direction: &mut usize) -> usize {
-    let mut proposed_moves: HashMap<(isize, isize), usize> = HashMap::new();
-    let keys: Vec<_> = map.clone().into_keys().collect();
-    for pos in &keys {
-        let mov = elf_possible_move(map, *pos, *test_direction);
-        map.get_mut(pos).unwrap().proposed = mov;
-        if let Some(new_pos) = mov {
-            *proposed_moves.entry(new_pos).or_default() += 1;
+fn elf_round(map: &mut HashSet<Pos>, test_direction: &mut usize) -> usize {
+    let mut proposed: HashMap<Pos, SmallVec<[Pos; 4]>> = HashMap::new();
+    for &pos in map.iter() {
+        if let Some(new_pos) = elf_possible_move(map, pos, *test_direction) {
+            proposed.entry(new_pos).or_default().push(pos);
         }
     }
-    proposed_moves.retain(|_, num| *num == 1);
-    for pos in &keys {
-        if let Some(mov) = map.get(pos).unwrap().proposed {
-            if proposed_moves.contains_key(&mov) {
-                if let Some(elf) = map.remove(pos) {
-                    map.insert(mov, elf);
-                }
-            }
+    for (proposed, from_pos) in &proposed {
+        if from_pos.len() == 1 {
+            map.remove(&from_pos[0]);
+            map.insert(*proposed);
         }
     }
     *test_direction = (*test_direction + 1) % 4;
-    proposed_moves.len()
+    proposed.len()
 }
 
 #[cfg(test)]
