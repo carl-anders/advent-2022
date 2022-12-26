@@ -1,3 +1,4 @@
+#![allow(clippy::cast_possible_wrap)]
 use super::day::Day;
 use anyhow::Result;
 
@@ -13,7 +14,7 @@ fn snafu_to_i(snafu: &str) -> isize {
 }
 fn i_to_snafu(i: isize) -> String {
     if i == 0 {
-        "".to_string()
+        String::new()
     } else {
         format!(
             "{}{}",
@@ -33,7 +34,7 @@ impl Day for Day25 {
     fn first(input: Self::Parsed) -> Self::Output {
         let mut sum = 0;
         for line in input.lines() {
-            sum += snafu_to_i(&line);
+            sum += snafu_to_i(line);
         }
         i_to_snafu(sum)
     }

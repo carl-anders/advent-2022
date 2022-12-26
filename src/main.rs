@@ -107,7 +107,7 @@ fn run_days(days: Vec<u8>) {
         .collect();
 
     header(" TIMINGS ");
-    for chunk in timings.chunks(8) {
+    for chunk in timings.chunks(7) {
         print!("Day:     ");
         for (name, _) in chunk {
             print!("|{name:^15}");
