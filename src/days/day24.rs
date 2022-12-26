@@ -1,7 +1,5 @@
-use super::{
-    day::Day,
-    grid2d::{Direction4Way, Position2D},
-};
+use super::day::Day;
+use crate::helpers::grid2d::{Direction4Way, Position2D};
 use ahash::{HashSet, HashSetExt};
 use anyhow::Result;
 use ndarray::Array2;

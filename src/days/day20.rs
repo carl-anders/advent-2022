@@ -1,8 +1,7 @@
 #![allow(clippy::cast_possible_truncation)]
-use std::collections::VecDeque;
-
 use super::day::Day;
 use anyhow::Result;
+use std::collections::VecDeque;
 
 pub struct Day20;
 impl Day for Day20 {

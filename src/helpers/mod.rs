@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+pub mod grid2d;
 
 use std::ops::{Range, RangeBounds};
 pub trait BorrowTwo<T> {
@@ -50,7 +51,7 @@ impl<const SIZE: usize> LongBitArr<SIZE> {
 }
 
 pub struct UsizeIter {
-    inner: usize
+    inner: usize,
 }
 
 impl UsizeIter {
@@ -72,7 +73,10 @@ impl Iterator for UsizeIter {
     }
 }
 
-pub trait BitIter where Self: Sized + PartialEq {
+pub trait BitIter
+where
+    Self: Sized + PartialEq,
+{
     fn bit_next(&mut self) -> Option<Self>;
 }
 
@@ -136,7 +140,7 @@ impl<T: Ord + Copy> MergedRange<T> {
     fn simplify(&mut self) {
         self.ranges.sort_unstable_by(|a, b| a.start.cmp(&b.start));
         'outer: loop {
-            for index in 0..self.ranges.len()-1 {
+            for index in 0..self.ranges.len() - 1 {
                 let (a, b) = self.ranges.borrow_two(index, index + 1);
                 if a.end >= b.start && a.start <= b.end {
                     *a = a.start.min(b.start)..a.end.max(b.end);

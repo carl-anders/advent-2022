@@ -69,7 +69,7 @@ impl Day for Day10 {
                 if x_pos == 0 && cycles != 0 {
                     report.push('\n');
                 }
-                if x_pos >= x-1 && x_pos <= x+1 {
+                if x_pos >= x - 1 && x_pos <= x + 1 {
                     report.push('#');
                 } else {
                     report.push('.');

@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use super::day::Day;
 use anyhow::Result;
+use std::collections::HashMap;
 
 pub struct Day7;
 impl Day for Day7 {
@@ -31,11 +30,20 @@ impl Day for Day7 {
         Ok(folders)
     }
     fn first(folders: Self::Parsed) -> Self::Output {
-        folders.iter().map(|(_, &size)| size).filter(|&size| size <= 100_000).sum::<i32>()
+        folders
+            .iter()
+            .map(|(_, &size)| size)
+            .filter(|&size| size <= 100_000)
+            .sum::<i32>()
     }
     fn second(folders: Self::Parsed) -> Self::Output {
         let min_to_delete = folders.get(&vec!["/".to_string()]).unwrap() - 40_000_000;
-        folders.iter().map(|(_, &size)| size).filter(|&size| size > min_to_delete).min().unwrap()
+        folders
+            .iter()
+            .map(|(_, &size)| size)
+            .filter(|&size| size > min_to_delete)
+            .min()
+            .unwrap()
     }
 }
 

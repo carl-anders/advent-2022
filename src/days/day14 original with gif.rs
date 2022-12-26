@@ -1,9 +1,7 @@
-use std::collections::HashSet;
-
 use super::day::Day;
 use anyhow::Result;
 use itertools::Itertools;
-
+use std::collections::HashSet;
 
 #[allow(dead_code)]
 fn print_map(map: &HashSet<(usize, usize)>, left: usize, right: usize, top: usize, bottom: usize) {

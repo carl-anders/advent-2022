@@ -1,7 +1,5 @@
-use super::{
-    day::Day,
-    grid2d::{Direction4Way, Position2D, Turn},
-};
+use super::day::Day;
+use crate::helpers::grid2d::{Direction4Way, Position2D, Turn};
 use anyhow::Result;
 use itertools::Itertools;
 use lazy_static::lazy_static;

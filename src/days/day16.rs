@@ -1,13 +1,10 @@
-use std::collections::HashMap;
-
-use super::{
-    day::Day,
-    helpers::{BitArr, UsizeIter},
-};
+use super::day::Day;
+use crate::helpers::{BitArr, UsizeIter};
 use ahash::AHashMap;
 use anyhow::Result;
 use itertools::iproduct;
 use smallvec::SmallVec;
+use std::collections::HashMap;
 
 pub struct RoomSolver64 {
     rooms: Vec<Room>,

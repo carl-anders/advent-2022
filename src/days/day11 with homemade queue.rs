@@ -1,11 +1,9 @@
-use std::collections::VecDeque;
-
+use super::day::Day;
+use anyhow::Result;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
-
-use super::day::Day;
-use anyhow::Result;
+use std::collections::VecDeque;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Operation {
@@ -37,14 +35,19 @@ pub struct Monkey {
 }
 #[derive(Debug, Clone, Copy)]
 pub struct TotallySafeArray {
-    items: [i64;32],
+    items: [i64; 32],
     front: usize,
     back: usize,
-    len: usize
+    len: usize,
 }
 impl TotallySafeArray {
     const fn new() -> Self {
-        Self { items: [0;32], front: 0, back: 0, len: 0 }
+        Self {
+            items: [0; 32],
+            front: 0,
+            back: 0,
+            len: 0,
+        }
     }
     fn push_back(&mut self, val: i64) {
         unsafe {
@@ -166,10 +169,10 @@ impl Day for Day11 {
                 .split(", ")
                 .map(|s| s.parse().unwrap())
                 .collect();
-             let mut items = TotallySafeArray::new();
+            let mut items = TotallySafeArray::new();
             for i in vec {
                 items.push_back(i);
-            } 
+            }
             let op = &it.next().unwrap()[23..];
             let val = op[2..].parse().ok();
             let operation = match &op[0..1] {
@@ -217,43 +220,48 @@ impl Day for Day11 {
     }
     fn second(mut monkeys: Self::Parsed) -> Self::Output {
         // LCM of list of unique primes = product of list
-        let lcm: i64 = monkeys
-            .iter()
-            .map(|m| m.div_test)
-            .product();
+        let lcm: i64 = monkeys.iter().map(|m| m.div_test).product();
         let mut monkey_states: FxHashMap<_, (_, Vec<_>)> = FxHashMap::default();
         let mut found_cycle = false;
-        let mut x = 1;  // =10000
+        let mut x = 1; // =10000
         while x <= 10000 {
             for i in 0..monkeys.len() {
                 unsafe {
-                    while let Some(mut item_worry) = monkeys.get_unchecked_mut(i).items.pop_front() {
+                    while let Some(mut item_worry) = monkeys.get_unchecked_mut(i).items.pop_front()
+                    {
                         item_worry = monkeys.get_unchecked(i).operation.operate(item_worry) % lcm;
                         let throw_to = if item_worry % monkeys.get_unchecked(i).div_test == 0 {
                             monkeys.get_unchecked(i).if_true
                         } else {
                             monkeys.get_unchecked(i).if_false
                         };
-                        monkeys.get_unchecked_mut(throw_to).items.push_back(item_worry);
+                        monkeys
+                            .get_unchecked_mut(throw_to)
+                            .items
+                            .push_back(item_worry);
                         monkeys.get_unchecked_mut(i).throws += 1;
                     }
                 }
             }
             if !found_cycle {
-                let list: Vec<_> = monkeys.iter().map(|m| {
-                    m.items.into_iter().collect::<SmallVec<[_;16]>>()
-                }).collect();
+                let list: Vec<_> = monkeys
+                    .iter()
+                    .map(|m| m.items.into_iter().collect::<SmallVec<[_; 16]>>())
+                    .collect();
                 if let Some((old_x, old_throws)) = monkey_states.get(&list) {
                     let same_diff = x - old_x;
                     let cycles = (10000 - x) / same_diff;
                     x += cycles * same_diff;
                     found_cycle = true;
                     for i in 0..monkeys.len() {
-                        monkeys[i].throws += (monkeys[i].throws - old_throws[i]) * i64::from(cycles);
+                        monkeys[i].throws +=
+                            (monkeys[i].throws - old_throws[i]) * i64::from(cycles);
                     }
-                    
                 } else {
-                    monkey_states.insert(list, (x, monkeys.iter().map(|m| m.throws).collect::<Vec<_>>()));
+                    monkey_states.insert(
+                        list,
+                        (x, monkeys.iter().map(|m| m.throws).collect::<Vec<_>>()),
+                    );
                 }
             }
             x += 1;

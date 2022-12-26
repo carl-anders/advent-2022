@@ -1,7 +1,6 @@
-use itertools::Itertools;
-
 use super::day::Day;
 use anyhow::Result;
+use itertools::Itertools;
 
 const fn char_as_score(c: char) -> i32 {
     if c >= 'a' {

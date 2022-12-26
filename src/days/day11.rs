@@ -1,9 +1,11 @@
-use std::{collections::{VecDeque, hash_map::DefaultHasher}, hash::{Hasher, Hash}};
-
-use itertools::Itertools;
-use rustc_hash::FxHashMap;
 use super::day::Day;
 use anyhow::Result;
+use itertools::Itertools;
+use rustc_hash::FxHashMap;
+use std::{
+    collections::{hash_map::DefaultHasher, VecDeque},
+    hash::{Hash, Hasher},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Operation {
@@ -94,14 +96,11 @@ impl Day for Day11 {
     }
     fn second(mut monkeys: Self::Parsed) -> Self::Output {
         // LCM of list of unique primes = product of list
-        let lcm: i64 = monkeys
-            .iter()
-            .map(|m| m.div_test)
-            .product();
+        let lcm: i64 = monkeys.iter().map(|m| m.div_test).product();
         let mut monkey_states: FxHashMap<_, (_, Vec<_>)> = FxHashMap::default();
         let mut found_cycle = false;
-        let mut x = 1;  // =10000
-        
+        let mut x = 1; // =10000
+
         while x <= 10000 {
             for i in 0..monkeys.len() {
                 while let Some(mut item_worry) = monkeys[i].items.pop_front() {
@@ -127,11 +126,14 @@ impl Day for Day11 {
                     x += cycles * same_diff;
                     found_cycle = true;
                     for i in 0..monkeys.len() {
-                        monkeys[i].throws += (monkeys[i].throws - old_throws[i]) * i64::from(cycles);
+                        monkeys[i].throws +=
+                            (monkeys[i].throws - old_throws[i]) * i64::from(cycles);
                     }
-                    
                 } else {
-                    monkey_states.insert(key, (x, monkeys.iter().map(|m| m.throws).collect::<Vec<_>>()));
+                    monkey_states.insert(
+                        key,
+                        (x, monkeys.iter().map(|m| m.throws).collect::<Vec<_>>()),
+                    );
                 }
             }
             x += 1;

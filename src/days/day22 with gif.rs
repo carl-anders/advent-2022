@@ -1,5 +1,3 @@
-use std::{borrow::Cow, fs::File};
-
 use super::day::Day;
 use anyhow::Result;
 use gif::{Encoder, Frame, Repeat};
@@ -7,6 +5,7 @@ use itertools::Itertools;
 use lazy_static::lazy_static;
 use ndarray::Array2;
 use regex::Regex;
+use std::{borrow::Cow, fs::File};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Point {

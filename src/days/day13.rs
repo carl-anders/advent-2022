@@ -1,9 +1,7 @@
-use std::cmp::Ordering;
-
-use itertools::Itertools;
-
 use super::day::Day;
 use anyhow::Result;
+use itertools::Itertools;
+use std::cmp::Ordering;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Packet {

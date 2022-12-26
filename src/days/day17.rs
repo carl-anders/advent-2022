@@ -1,9 +1,8 @@
-use std::collections::hash_map::{DefaultHasher, Entry};
-use std::hash::{Hash, Hasher};
-
 use super::day::Day;
 use ahash::AHashMap;
 use anyhow::Result;
+use std::collections::hash_map::{DefaultHasher, Entry};
+use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Direction {

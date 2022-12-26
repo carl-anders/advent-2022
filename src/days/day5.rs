@@ -1,7 +1,7 @@
-use itertools::Itertools;
-
-use super::{day::Day, helpers::BorrowTwo};
+use super::day::Day;
+use crate::helpers::BorrowTwo;
 use anyhow::Result;
+use itertools::Itertools;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Move {
@@ -61,7 +61,8 @@ impl Day for Day5 {
             }
         }
 
-        let moves = input_moves.lines()
+        let moves = input_moves
+            .lines()
             .map(|line| {
                 let m: (usize, usize, usize) = line
                     .split(' ')

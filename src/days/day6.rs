@@ -1,4 +1,5 @@
-use super::{day::Day, helpers::BitArr};
+use super::day::Day;
+use crate::helpers::BitArr;
 use anyhow::Result;
 
 fn find_first_unique<const UNIQUE: usize>(chars: &[u8]) -> usize {

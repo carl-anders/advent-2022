@@ -1,14 +1,10 @@
-#![allow(clippy::cast_possible_wrap)]
-#![allow(clippy::range_plus_one)]
-use std::collections::VecDeque;
-
-use super::{
-    day::Day,
-    helpers::{MergedRange, RangeIntersect},
-};
+#![allow(clippy::cast_possible_wrap, clippy::range_plus_one)]
+use super::day::Day;
+use crate::helpers::{MergedRange, RangeIntersect};
 use anyhow::Result;
 use itertools::Itertools;
 use smallvec::{smallvec, SmallVec};
+use std::collections::VecDeque;
 
 #[derive(Debug, Clone, Copy)]
 pub struct SensorData {

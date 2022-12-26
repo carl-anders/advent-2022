@@ -1,7 +1,6 @@
-use itertools::Itertools;
-
 use super::day::Day;
 use anyhow::Result;
+use itertools::Itertools;
 
 pub struct Day1;
 impl Day for Day1 {

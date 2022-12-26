@@ -1,3 +1,6 @@
+use super::day::Day;
+use anyhow::Result;
+use itertools::Itertools;
 use std::convert::TryFrom;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -22,11 +25,6 @@ impl Shape {
     pub const DRAW: Self = Self::Paper;
     pub const WIN: Self = Self::Scissors;
 }
-
-use itertools::Itertools;
-
-use super::day::Day;
-use anyhow::Result;
 
 pub struct Day2;
 impl Day for Day2 {

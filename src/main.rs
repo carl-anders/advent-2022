@@ -17,6 +17,7 @@ use std::{
 };
 mod days;
 use days::*;
+mod helpers;
 mod results;
 
 fn run<T: day::Day>(

@@ -1,8 +1,6 @@
 #![allow(clippy::cast_possible_wrap)]
-use super::{
-    day::Day,
-    grid2d::{Direction8Way, Position2D},
-};
+use super::day::Day;
+use crate::helpers::grid2d::{Direction8Way, Position2D};
 use ahash::{HashMap, HashMapExt, HashSet};
 use anyhow::Result;
 use itertools::Itertools;
