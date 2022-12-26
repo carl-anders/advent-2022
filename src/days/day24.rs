@@ -5,7 +5,8 @@ use super::{
 use ahash::{HashSet, HashSetExt};
 use anyhow::Result;
 use ndarray::Array2;
-use pathfinding::prelude::dijkstra;
+use pathfinding::prelude::astar;
+use smallvec::{smallvec, SmallVec};
 
 type Pos = Position2D<usize>;
 type Dir = Direction4Way;
@@ -149,11 +150,11 @@ impl Day for Day24 {
 }
 
 fn shortest_path(map: &mut Map, start: Pos, end: Pos, start_time: usize) -> usize {
-    dijkstra(
+    astar(
         &(start_time, start),
         |(time, pos)| {
-            let mut paths = vec![];
-            let time = time+1;
+            let mut paths: SmallVec<[_; 5]> = smallvec![];
+            let time = time + 1;
             if !map.is_blocked(time, *pos) {
                 paths.push(((time, *pos), 1));
             }
@@ -171,6 +172,7 @@ fn shortest_path(map: &mut Map, start: Pos, end: Pos, start_time: usize) -> usiz
             }
             paths
         },
+        |(_, pos)| pos.manhattan(&end),
         |(_, pos)| *pos == end,
     )
     .unwrap()

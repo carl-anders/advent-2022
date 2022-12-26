@@ -62,6 +62,20 @@ impl<T: Copy + WrappingSub> Position2D<T> {
     }
 }
 
+impl<T: Copy + PartialOrd + Sub<Output = T> + Add<Output = T>> Position2D<T> {
+    pub fn manhattan(&self, other: &Self) -> T {
+        (if self.x > other.x {
+            self.x - other.x
+        } else {
+            other.x - self.x
+        }) + (if self.y > other.y {
+            self.y - other.y
+        } else {
+            other.y - self.y
+        })
+    }
+}
+
 impl<T: Add<Output = T>> Add<Self> for Position2D<T> {
     type Output = Self;
     fn add(self, other: Self) -> Self {
