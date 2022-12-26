@@ -1,8 +1,8 @@
-use std::{borrow::Cow, fs::File};
-
-use super::day::Day;
+use super::{
+    day::Day,
+    grid2d::{Direction4Way, Position2D, Turn},
+};
 use anyhow::Result;
-use gif::{Encoder, Frame, Repeat};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use ndarray::Array2;
@@ -14,99 +14,18 @@ pub enum Point {
     Nothing,
     Open,
     Wall,
-    DrawRight,
-    DrawDown,
-    DrawLeft,
-    DrawUp,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum Movement {
     Num(u8),
-    Right,
-    Left,
+    Turn(Turn),
 }
-
-#[derive(Debug, Clone, Copy)]
-pub enum Direction {
-    Right = 0,
-    Down = 1,
-    Left = 2,
-    Up = 3,
-}
-impl Direction {
-    fn movement(&mut self, movement: Movement) {
-        use Direction::*;
-        match movement {
-            Movement::Num(_) => {}
-            Movement::Right => {
-                *self = match self {
-                    Up => Right,
-                    Right => Down,
-                    Down => Left,
-                    Left => Up,
-                }
-            }
-            Movement::Left => {
-                *self = match self {
-                    Up => Left,
-                    Right => Up,
-                    Down => Right,
-                    Left => Down,
-                }
-            }
-        }
-    }
-    fn turn_right(&mut self, times: usize) {
-        for _ in 0..(times % 4) {
-            self.movement(Movement::Right);
-        }
-    }
-}
+type Dir = Direction4Way;
+type Pos = Position2D<usize>;
 
 lazy_static! {
     static ref RE: Regex = Regex::new(r"(\d+)|([A-Z])").unwrap();
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum IP {
-    Right = 0,
-    Bottom = 1,
-    Left = 2,
-    Top = 3,
-}
-
-fn _w_frame(encoder: &mut Encoder<&mut File>, map: &Array2<Point>) {
-    let (width, height) = (450, 600);
-    let mut state = [0; 450 * 600];
-    let mut frame = Frame::<'_> {
-        width,
-        height,
-        ..Default::default()
-    };
-    for y in 0..200usize {
-        for x in 0..150usize {
-            let point = map[[y, x]];
-            let draw = match point {
-                Point::Nothing => [[0; 3]; 3],
-                Point::Open => [[1; 3]; 3],
-                Point::Wall => [[2; 3]; 3],
-                Point::DrawRight => [[1, 3, 1], [1, 1, 3], [1, 3, 1]],
-                Point::DrawDown => [[1, 1, 1], [3, 1, 3], [1, 3, 1]],
-                Point::DrawLeft => [[1, 3, 1], [3, 1, 1], [1, 3, 1]],
-                Point::DrawUp => [[1, 3, 1], [3, 1, 3], [1, 1, 1]],
-            };
-            if point != Point::Nothing {
-                for dy in 0..3 {
-                    for dx in 0..3 {
-                        state[((y * 3 + dy) * width as usize + x * 3 + dx)] = draw[dy][dx];
-                    }
-                }
-            }
-        }
-    }
-    frame.buffer = Cow::Borrowed(&state);
-    encoder.write_frame(&frame).unwrap();
 }
 
 pub struct Day22;
@@ -134,10 +53,10 @@ impl Day for Day22 {
                 if let Some(n) = p.get(1) {
                     Movement::Num(n.as_str().parse().unwrap())
                 } else if let Some(d) = p.get(2) {
-                    match d.as_str() {
-                        "L" => Movement::Left,
-                        _ => Movement::Right,
-                    }
+                    Movement::Turn(match d.as_str() {
+                        "L" => Turn::Left,
+                        _ => Turn::Right,
+                    })
                 } else {
                     panic!()
                 }
@@ -150,225 +69,45 @@ impl Day for Day22 {
             let row = array.row(0);
             row.iter().find_position(|&&p| p == Point::Open).unwrap().0
         };
-        let mut current_pos = [0, top_left_x];
-        let mut direction = Direction::Right;
+        let mut current_pos = Pos::new(top_left_x, 0);
+        let mut direction = Dir::Right;
         for mov in movements {
-            direction.movement(mov);
-            if let Movement::Num(num) = mov {
-                for _ in 0..num {
-                    move_by(&mut current_pos, direction, &array);
+            match mov {
+                Movement::Turn(turn) => direction = direction + turn,
+                Movement::Num(num) => {
+                    for _ in 0..num {
+                        current_pos = move_by(current_pos, direction, &array);
+                    }
                 }
             }
         }
-        let row = current_pos[0] + 1;
-        let col = current_pos[1] + 1;
-        let fac = direction as usize;
-        row * 1000 + col * 4 + fac
+        (current_pos.y + 1) * 1000 + (current_pos.x + 1) * 4 + direction as usize
     }
     fn second((array, movements): Self::Parsed) -> Self::Output {
         let (height, width) = array.dim();
 
-        let mut draw_array = array.clone();
-        // empty: fffcf2 - 0
-        // bg: ccc5b9 - 1
-        // rock: 403d39 - 2
-        // arrow: eb5e28 -3
-        let color_map = &[
-            0xFF, 0xFC, 0xF2, 0xCC, 0xC5, 0xB9, 0x40, 0x3d, 0x39, 0xEB, 0x5E, 0x28,
-        ];
-        let mut image = File::create("day22_anim.gif").unwrap();
-        let mut encoder = Encoder::new(&mut image, 450, 600, color_map).unwrap();
-        encoder.set_repeat(Repeat::Infinite).unwrap();
-
-        let portals = [
-            // (right, down, left, up)
-            // ((index, (add right x times)))
-            [(0, IP::Left), (0, IP::Left), (0, IP::Left), (0, IP::Left)], // [0]
-            [(2, IP::Left), (4, IP::Top), (6, IP::Left), (9, IP::Left)],  // 1
-            [
-                (7, IP::Right),
-                (4, IP::Right),
-                (1, IP::Right),
-                (9, IP::Bottom),
-            ], // 2
-            [(0, IP::Left), (0, IP::Left), (0, IP::Left), (0, IP::Left)], // [3]
-            [(2, IP::Bottom), (7, IP::Top), (6, IP::Top), (1, IP::Bottom)], // 4
-            [(0, IP::Left), (0, IP::Left), (0, IP::Left), (0, IP::Left)], // [5]
-            [(7, IP::Left), (9, IP::Top), (1, IP::Left), (4, IP::Left)],  // 6
-            [
-                (2, IP::Right),
-                (9, IP::Right),
-                (6, IP::Right),
-                (4, IP::Bottom),
-            ], // 7
-            [(0, IP::Left), (0, IP::Left), (0, IP::Left), (0, IP::Left)], // [8]
-            [(7, IP::Bottom), (2, IP::Top), (1, IP::Top), (6, IP::Bottom)], // 9
-            [(0, IP::Left), (0, IP::Left), (0, IP::Left), (0, IP::Left)], // [10]
-            [(0, IP::Left), (0, IP::Left), (0, IP::Left), (0, IP::Left)], // [11]
-        ];
         let sector_size = (height / 3).min(width / 3);
-        let sector_pos_to_pos = |pos: (usize, [usize; 2])| -> [usize; 2] {
+        let sector_pos_to_pos = |pos: (usize, Pos)| -> [usize; 2] {
             let row = pos.0 / 3;
             let col = pos.0 % 3;
-            [pos.1[0] + row * sector_size, pos.1[1] + col * sector_size]
+            [pos.1.y + row * sector_size, pos.1.x + col * sector_size]
         };
-        let mut position = (1, [0, 0]);
+        let mut position = (1, Pos::new(0, 0));
 
-        let mut direction = Direction::Right;
+        let mut direction = Dir::Right;
         for mov in movements {
-            direction.movement(mov);
-            if let Movement::Num(num) = mov {
-                for _ in 0..num {
-                    let mut try_position = position;
-                    let mut try_direction = direction;
-                    //println!("Current pos: {:?}", sector_pos_to_pos(current_pos));
-                    match direction {
-                        Direction::Right => {
-                            if position.1[1] == sector_size - 1 {
-                                /* println!("Current pos: {current_pos:?}, direction: {direction:?}"); */
-                                let portal = portals[position.0][0];
-                                try_position.0 = portal.0;
-                                // Changing direction is [0]
-                                match portal.1 {
-                                    IP::Right => {
-                                        try_position.1[0] = sector_size - position.1[0] - 1;
-                                        try_position.1[1] = sector_size - 1;
-                                    }
-                                    IP::Bottom => {
-                                        try_position.1[0] = sector_size - 1;
-                                        try_position.1[1] = position.1[0];
-                                    }
-                                    IP::Left => {
-                                        try_position.1[1] = 0;
-                                    }
-                                    IP::Top => {
-                                        // Untested direction. Might not work.
-                                        try_position.1[0] = 0;
-                                        try_position.1[1] = position.1[0];
-                                    }
-                                }
-                                try_direction.turn_right(portal.1 as usize + 2);
-
-                                /* println!(
-                                    "Going Right to {} with portal {portal:?}, checking position: {:?}, ",
-                                    test_pos.0, test_pos.1
-                                ); */
-                            } else {
-                                try_position.1[1] += 1;
-                            }
+            match mov {
+                Movement::Turn(turn) => direction = direction + turn,
+                Movement::Num(num) => {
+                    for _ in 0..num {
+                        let (try_position, try_direction) =
+                            cube_next_pos(position, direction, sector_size);
+                        if try_position != position
+                            && array[sector_pos_to_pos(try_position)] == Point::Open
+                        {
+                            direction = try_direction;
+                            position = try_position;
                         }
-                        Direction::Down => {
-                            if position.1[0] == sector_size - 1 {
-                                /* println!("Current pos: {current_pos:?}, direction: {direction:?}"); */
-                                let portal = portals[position.0][1];
-                                try_position.0 = portal.0;
-                                // Changing direction is [1]
-                                match portal.1 {
-                                    IP::Right => {
-                                        try_position.1[0] = position.1[1];
-                                        try_position.1[1] = sector_size - 1;
-                                    }
-                                    IP::Bottom => {
-                                        // Untested direction. Might not work.
-                                        try_position.1[0] = sector_size - position.1[1] - 1;
-                                        try_position.1[1] = sector_size - 1;
-                                    }
-                                    IP::Left => {
-                                        // Untested direction. Might not work.
-                                        try_position.1[0] = position.1[1];
-                                        try_position.1[1] = 0;
-                                    }
-                                    IP::Top => {
-                                        try_position.1[0] = 0;
-                                    }
-                                }
-                                try_direction.turn_right(portal.1 as usize + 1);
-                                /* println!(
-                                    "Going Down to {} with portal {portal:?}, checking position: {:?}, ",
-                                    test_pos.0, test_pos.1
-                                ); */
-                            } else {
-                                try_position.1[0] += 1;
-                            }
-                        }
-                        Direction::Left => {
-                            if position.1[1] == 0 {
-                                /* println!("Current pos: {current_pos:?}, direction: {direction:?}"); */
-                                let portal = portals[position.0][2];
-                                try_position.0 = portal.0;
-                                // Changing direction is [0]
-                                match portal.1 {
-                                    IP::Right => {
-                                        try_position.1[1] = sector_size - 1;
-                                    }
-                                    IP::Bottom => {
-                                        try_position.1[0] = sector_size - 1;
-                                        try_position.1[1] = position.1[0];
-                                    }
-                                    IP::Left => {
-                                        try_position.1[0] = sector_size - position.1[0] - 1;
-                                        try_position.1[1] = 0;
-                                    }
-                                    IP::Top => {
-                                        try_position.1[0] = 0;
-                                        try_position.1[1] = position.1[0];
-                                    }
-                                }
-                                try_direction.turn_right(portal.1 as usize);
-                                /* println!(
-                                    "Going Left to {} with portal {portal:?}, checking position: {:?}, ",
-                                    test_pos.0, test_pos.1
-                                ); */
-                            } else {
-                                try_position.1[1] -= 1;
-                            }
-                        }
-                        Direction::Up => {
-                            if position.1[0] == 0 {
-                                /* println!("Current pos: {current_pos:?}, direction: {direction:?}"); */
-                                let portal = portals[position.0][3];
-                                try_position.0 = portal.0;
-                                // Changing direction is [1]
-                                match portal.1 {
-                                    IP::Right => {
-                                        // Untested direction. Might not work.
-                                        try_position.1[0] = sector_size - position.1[1] - 1;
-                                        try_position.1[1] = sector_size - 1;
-                                    }
-                                    IP::Bottom => {
-                                        try_position.1[0] = sector_size - 1;
-                                    }
-                                    IP::Left => {
-                                        try_position.1[0] = position.1[1];
-                                        try_position.1[1] = 0;
-                                    }
-                                    IP::Top => {
-                                        // Untested direction. Might not work.
-                                        try_position.1[0] = 0;
-                                    }
-                                }
-                                try_direction.turn_right(portal.1 as usize + 3);
-                                /* println!(
-                                    "Going Up to {} with portal {portal:?}, checking position: {:?}, ",
-                                    test_pos.0, test_pos.1
-                                ); */
-                            } else {
-                                try_position.1[0] -= 1;
-                            }
-                        }
-                    }
-                    if try_position != position
-                        && array[sector_pos_to_pos(try_position)] == Point::Open
-                    {
-                        draw_array[sector_pos_to_pos(position)] = match direction {
-                            Direction::Right => Point::DrawRight,
-                            Direction::Down => Point::DrawDown,
-                            Direction::Left => Point::DrawLeft,
-                            Direction::Up => Point::DrawUp,
-                        };
-                        //_w_frame(&mut encoder, &draw_array);
-                        direction = try_direction;
-                        position = try_position;
                     }
                 }
             }
@@ -381,44 +120,185 @@ impl Day for Day22 {
     }
 }
 
-fn move_by(current_pos: &mut [usize; 2], direction: Direction, array: &Array2<Point>) {
+fn move_by(current_pos: Pos, direction: Dir, array: &Array2<Point>) -> Pos {
     let (height, width) = array.dim();
-    let mut look_pos = *current_pos;
+    let mut look_pos = current_pos;
     loop {
         match direction {
-            Direction::Up => {
-                look_pos[0] = look_pos[0].wrapping_sub(1).min(height - 1);
+            Dir::Up => {
+                look_pos.y = look_pos.y.wrapping_sub(1).min(height - 1);
             }
-            Direction::Right => {
-                look_pos[1] = if look_pos[1] == width - 1 {
+            Dir::Right => {
+                look_pos.x = if look_pos.x == width - 1 {
                     0
                 } else {
-                    look_pos[1] + 1
+                    look_pos.x + 1
                 };
             }
-            Direction::Down => {
-                look_pos[0] = if look_pos[0] == height - 1 {
+            Dir::Down => {
+                look_pos.y = if look_pos.y == height - 1 {
                     0
                 } else {
-                    look_pos[0] + 1
+                    look_pos.y + 1
                 };
             }
-            Direction::Left => {
-                look_pos[1] = look_pos[1].wrapping_sub(1).min(width - 1);
+            Dir::Left => {
+                look_pos.x = look_pos.x.wrapping_sub(1).min(width - 1);
             }
         }
 
-        match array[look_pos] {
+        match array[look_pos.yx()] {
             Point::Open => {
-                *current_pos = look_pos;
-                break;
+                return look_pos;
             }
             Point::Wall => {
-                break;
+                return current_pos;
             }
-            _ => {}
+            Point::Nothing => {}
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum P {
+    Right = 0,
+    Bottom = 1,
+    Left = 2,
+    Top = 3,
+}
+
+const PORTALS: [[(usize, P); 4]; 12] = [
+    // (right, down, left, up)
+    // ((portal index, portal exit))
+    [(0, P::Left), (0, P::Left), (0, P::Left), (0, P::Left)], // [0]
+    [(2, P::Left), (4, P::Top), (6, P::Left), (9, P::Left)],  // 1
+    [(7, P::Right), (4, P::Right), (1, P::Right), (9, P::Bottom)], // 2
+    [(0, P::Left), (0, P::Left), (0, P::Left), (0, P::Left)], // [3]
+    [(2, P::Bottom), (7, P::Top), (6, P::Top), (1, P::Bottom)], // 4
+    [(0, P::Left), (0, P::Left), (0, P::Left), (0, P::Left)], // [5]
+    [(7, P::Left), (9, P::Top), (1, P::Left), (4, P::Left)],  // 6
+    [(2, P::Right), (9, P::Right), (6, P::Right), (4, P::Bottom)], // 7
+    [(0, P::Left), (0, P::Left), (0, P::Left), (0, P::Left)], // [8]
+    [(7, P::Bottom), (2, P::Top), (1, P::Top), (6, P::Bottom)], // 9
+    [(0, P::Left), (0, P::Left), (0, P::Left), (0, P::Left)], // [10]
+    [(0, P::Left), (0, P::Left), (0, P::Left), (0, P::Left)], // [11]
+];
+
+#[allow(clippy::too_many_lines)]
+const fn cube_next_pos(pos: (usize, Pos), dir: Dir, sector_size: usize) -> ((usize, Pos), Dir) {
+    let mut try_pos = pos;
+    let mut try_dir = dir;
+    match dir {
+        Dir::Right => {
+            if pos.1.x == sector_size - 1 {
+                let portal = PORTALS[pos.0][0];
+                try_pos.0 = portal.0;
+                match portal.1 {
+                    P::Right => {
+                        try_pos.1.y = sector_size - pos.1.y - 1;
+                        try_pos.1.x = sector_size - 1;
+                    }
+                    P::Bottom => {
+                        try_pos.1.y = sector_size - 1;
+                        try_pos.1.x = pos.1.y;
+                    }
+                    P::Left => {
+                        try_pos.1.x = 0;
+                    }
+                    P::Top => {
+                        // Untested direction. Might not work.
+                        try_pos.1.y = 0;
+                        try_pos.1.x = pos.1.y;
+                    }
+                }
+                try_dir = try_dir.turn_right(portal.1 as usize + 2);
+            } else {
+                try_pos.1.x += 1;
+            }
+        }
+        Dir::Down => {
+            if pos.1.y == sector_size - 1 {
+                let portal = PORTALS[pos.0][1];
+                try_pos.0 = portal.0;
+                match portal.1 {
+                    P::Right => {
+                        try_pos.1.y = pos.1.x;
+                        try_pos.1.x = sector_size - 1;
+                    }
+                    P::Bottom => {
+                        // Untested direction. Might not work.
+                        try_pos.1.y = sector_size - pos.1.x - 1;
+                        try_pos.1.x = sector_size - 1;
+                    }
+                    P::Left => {
+                        // Untested direction. Might not work.
+                        try_pos.1.y = pos.1.x;
+                        try_pos.1.x = 0;
+                    }
+                    P::Top => {
+                        try_pos.1.y = 0;
+                    }
+                }
+                try_dir = try_dir.turn_right(portal.1 as usize + 1);
+            } else {
+                try_pos.1.y += 1;
+            }
+        }
+        Dir::Left => {
+            if pos.1.x == 0 {
+                let portal = PORTALS[pos.0][2];
+                try_pos.0 = portal.0;
+                match portal.1 {
+                    P::Right => {
+                        try_pos.1.x = sector_size - 1;
+                    }
+                    P::Bottom => {
+                        try_pos.1.y = sector_size - 1;
+                        try_pos.1.x = pos.1.y;
+                    }
+                    P::Left => {
+                        try_pos.1.y = sector_size - pos.1.y - 1;
+                        try_pos.1.x = 0;
+                    }
+                    P::Top => {
+                        try_pos.1.y = 0;
+                        try_pos.1.x = pos.1.y;
+                    }
+                }
+                try_dir = try_dir.turn_right(portal.1 as usize);
+            } else {
+                try_pos.1.x -= 1;
+            }
+        }
+        Dir::Up => {
+            if pos.1.y == 0 {
+                let portal = PORTALS[pos.0][3];
+                try_pos.0 = portal.0;
+                match portal.1 {
+                    P::Right => {
+                        // Untested direction. Might not work.
+                        try_pos.1.y = sector_size - pos.1.x - 1;
+                        try_pos.1.x = sector_size - 1;
+                    }
+                    P::Bottom => {
+                        try_pos.1.y = sector_size - 1;
+                    }
+                    P::Left => {
+                        try_pos.1.y = pos.1.x;
+                        try_pos.1.x = 0;
+                    }
+                    P::Top => {
+                        // Untested direction. Might not work.
+                        try_pos.1.y = 0;
+                    }
+                }
+                try_dir = try_dir.turn_right(portal.1 as usize + 3);
+            } else {
+                try_pos.1.y -= 1;
+            }
+        }
+    }
+    (try_pos, try_dir)
 }
 
 #[cfg(test)]

@@ -110,10 +110,35 @@ impl<T: SubAssign> SubAssign for Position2D<T> {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Direction4Way {
-    Right,
-    Down,
-    Left,
-    Up,
+    Right = 0,
+    Down = 1,
+    Left = 2,
+    Up = 3,
+}
+impl Direction4Way {
+    pub const fn turn_right(self, times: usize) -> Self {
+        match times % 4 {
+            1 => match self {
+                Self::Right => Self::Down,
+                Self::Down => Self::Left,
+                Self::Left => Self::Up,
+                Self::Up => Self::Right,
+            },
+            2 => match self {
+                Self::Right => Self::Left,
+                Self::Down => Self::Up,
+                Self::Left => Self::Right,
+                Self::Up => Self::Down,
+            },
+            3 => match self {
+                Self::Right => Self::Up,
+                Self::Down => Self::Right,
+                Self::Left => Self::Down,
+                Self::Up => Self::Left,
+            },
+            _ => self,
+        }
+    }
 }
 impl<T: Copy + One + Add<Output = T> + Sub<Output = T>> Add<Direction4Way> for Position2D<T> {
     type Output = Self;
@@ -124,5 +149,17 @@ impl<T: Copy + One + Add<Output = T> + Sub<Output = T>> Add<Direction4Way> for P
             Direction4Way::Left => self.sub_x(T::one()),
             Direction4Way::Up => self.sub_y(T::one()),
         }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum Turn {
+    Right,
+    Left,
+}
+impl Add<Turn> for Direction4Way {
+    type Output = Self;
+    fn add(self, other: Turn) -> Self {
+        self.turn_right(if other == Turn::Right { 1 } else { 3 })
     }
 }
