@@ -50,65 +50,62 @@ impl<const SIZE: usize> LongBitArr<SIZE> {
     }
 }
 
-pub struct UsizeIter {
-    inner: usize,
-}
-
-impl UsizeIter {
-    pub const fn new(value: usize) -> Self {
-        Self { inner: value }
+pub struct BitIterator<T>(T);
+macro_rules! impl_BitIterator {
+    ($($t:ty),+) => {
+        $(impl Iterator for BitIterator<$t> {
+            type Item = $t;
+            fn next(&mut self) -> Option<Self::Item> {
+                if self.0 == 0 {
+                    None
+                } else {
+                    let next = self.0.trailing_zeros();
+                    self.0 ^= 1 << next;
+                    Some(next as $t)
+                }
+            }
+        })*
     }
 }
+impl_BitIterator!(usize, u8, u16, u32, u64, u128);
 
-impl Iterator for UsizeIter {
-    type Item = usize;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.inner == 0 {
-            None
-        } else {
-            let next = self.inner.trailing_zeros();
-            self.inner ^= 1 << next;
-            Some(next as usize)
-        }
+pub trait IntoBitIterator {
+    type Item;
+    fn into_bit_iter(self) -> BitIterator<Self::Item>;
+}
+macro_rules! impl_IntoBitIterator {
+    ($($t:ty),+) => {
+        $(impl IntoBitIterator for $t {
+            type Item = $t;
+            fn into_bit_iter(self) -> BitIterator<Self::Item> {
+                BitIterator(self)
+            }
+        })*
     }
 }
+impl_IntoBitIterator!(usize, u8, u16, u32, u64, u128);
 
-pub trait BitIter
-where
-    Self: Sized + PartialEq,
-{
-    fn bit_next(&mut self) -> Option<Self>;
-}
-
-impl BitIter for usize {
-    fn bit_next(&mut self) -> Option<Self> {
-        if *self == 0 {
-            None
-        } else {
-            let next = self.trailing_zeros();
-            *self ^= 1 << next;
-            Some(next as Self)
-        }
-    }
-}
-
-pub trait BitArr {
+pub trait BitArray {
     fn get(&self, index: Self) -> bool;
     fn set(&mut self, index: Self);
     fn clear(&mut self, index: Self);
 }
-
-impl BitArr for usize {
-    fn get(&self, index: Self) -> bool {
-        (self >> index) & 1 != 0
-    }
-    fn set(&mut self, index: Self) {
-        *self |= 1 << index;
-    }
-    fn clear(&mut self, index: Self) {
-        *self &= !(1 << index);
+macro_rules! impl_BitArray {
+    ($($t:ty),+) => {
+        $(impl BitArray for $t {
+            fn get(&self, index: Self) -> bool {
+                (self >> index) & 1 != 0
+            }
+            fn set(&mut self, index: Self) {
+                *self |= 1 << index;
+            }
+            fn clear(&mut self, index: Self) {
+                *self &= !(1 << index);
+            }
+        })*
     }
 }
+impl_BitArray!(usize, u8, u16, u32, u64, u128);
 
 pub trait RangeIntersect<T: Ord, U: RangeBounds<T>>: RangeBounds<T> {
     fn intersect(&self, other: &U) -> Option<U>;

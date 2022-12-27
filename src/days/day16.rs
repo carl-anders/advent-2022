@@ -1,5 +1,5 @@
 use super::day::Day;
-use crate::helpers::{BitArr, UsizeIter};
+use crate::helpers::{BitArray, IntoBitIterator};
 use ahash::AHashMap;
 use anyhow::Result;
 use itertools::iproduct;
@@ -62,7 +62,7 @@ impl RoomSolver64 {
             return 0;
         }
         let mut max = 0;
-        for curr in UsizeIter::new(to_search) {
+        for curr in to_search.into_bit_iter() {
             let walk_time = self.weights[key * 64 + curr];
             if walk_time < time {
                 let mut ts = to_search;
@@ -94,7 +94,7 @@ impl RoomSolver64 {
             return *m;
         }
         let mut max = 0;
-        for curr in UsizeIter::new(to_search) {
+        for curr in to_search.into_bit_iter() {
             let walk_time = self.weights[key * 64 + curr];
             if walk_time < time {
                 let mut ts = to_search;
