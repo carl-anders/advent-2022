@@ -10,8 +10,8 @@
 )]
 
 use itertools::Itertools;
-use results::RESULTS;
 use std::{
+    collections::HashMap,
     fs,
     time::{Duration, Instant},
 };
@@ -20,15 +20,27 @@ use days::*;
 mod helpers;
 mod results;
 
+const TEXT_RED: &str = "\x1b[1;31m";
+const TEXT_YELLOW: &str = "\x1b[1;33m";
+const TEXT_RESET: &str = "\x1b[0m";
+const TEXT_HEADER: &str = "\x1b[2;30;47m";
+
+fn header(header: &str) {
+    println!("\n{TEXT_HEADER}{header:#^60}{TEXT_RESET}");
+}
+
 fn run<T: day::Day>(
     file: &str,
-    results: [&str; 2],
-) -> (
+    results: &[Option<String>; 2],
+) -> Option<(
     std::time::Duration,
     std::time::Duration,
     std::time::Duration,
-) {
-    let input = fs::read_to_string(file).unwrap();
+)> {
+    let Ok(input) = fs::read_to_string(file) else {
+        println!("{TEXT_YELLOW}No input file found:{TEXT_RESET}");
+        return None;
+    };
 
     let start_time = Instant::now();
     let parsed = T::parse(input);
@@ -46,19 +58,23 @@ fn run<T: day::Day>(
         };
         let elapsed = start_time.elapsed();
         println!("-- Result:\n{}", result.to_string());
-        if result.to_string() != results[i] {
-            println!(
-                "\x1b[1;31mResults do not match! Stored result:\x1b[0m\n{}",
-                results[i]
-            );
+        match &results[i] {
+            Some(saved_result) => {
+                if result.to_string() != *saved_result {
+                    println!("{TEXT_RED}Results do not match! Stored result:{TEXT_RESET}\n{saved_result}");
+                }
+            }
+            None => {
+                println!("{TEXT_YELLOW}New result found!{TEXT_RESET}");
+            }
         }
         elapsed
     });
 
-    (parsed_time, times.next().unwrap(), times.next().unwrap())
+    Some((parsed_time, times.next().unwrap(), times.next().unwrap()))
 }
 
-fn run_day(day: u8, results: [&str; 2]) -> (Duration, Duration, Duration) {
+fn run_day(day: u8, results: &[Option<String>; 2]) -> Option<(Duration, Duration, Duration)> {
     let file = format!("input/{day}.txt");
     header(&format!(" Day {day} "));
     match day {
@@ -91,15 +107,17 @@ fn run_day(day: u8, results: [&str; 2]) -> (Duration, Duration, Duration) {
     }
 }
 
-fn header(header: &str) {
-    println!("\n\x1b[2;30;47m{header:#^60}\x1b[0m");
-}
-
 fn run_days(days: Vec<u8>) {
     let mut timings: Vec<(u8, (Duration, Duration, Duration))> = Vec::new();
+
+    let results = results::load().unwrap_or_else(|e| {
+        println!("{TEXT_YELLOW}Can't load results.json file:{TEXT_RESET}\n  {e:?}");
+        HashMap::new()
+    });
     for day in days {
-        if let Some(&results) = RESULTS.get((day - 1) as usize) {
-            timings.push((day, run_day(day, results)));
+        let result = results.get(&(day as usize)).unwrap_or(&[None, None]);
+        if let Some(t) = run_day(day, result) {
+            timings.push((day, t));
         }
     }
     timings = timings

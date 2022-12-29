@@ -1,32 +1,44 @@
-pub const RESULTS: [[&str; 2]; 25] = [
-    ["67016", "200116"],
-    ["13565", "12424"],
-    ["7597", "2607"],
-    ["644", "837"],
-    ["QNNTGTPFN", "GGNPJBTTR"],
-    ["1707", "3697"],
-    ["1443806", "942298"],
-    ["1719", "590824"],
-    ["6181", "2386"],
-    ["13220", "###..#..#..##..#..#.#..#.###..####.#..#.
-#..#.#..#.#..#.#.#..#..#.#..#.#....#.#..
-#..#.#..#.#..#.##...####.###..###..##...
-###..#..#.####.#.#..#..#.#..#.#....#.#..
-#.#..#..#.#..#.#.#..#..#.#..#.#....#.#..
-#..#..##..#..#.#..#.#..#.###..####.#..#."],
-    ["58786", "14952185856"],
-    ["497", "492"],
-    ["6070", "20758"],
-    ["793", "24166"],
-    ["5073496", "13081194638237"],
-    ["1647", "2169"],
-    ["3186", "1566376811584"],
-    ["4192", "2520"],
-    ["600", "6000"],
-    ["13289", "2865721299243"],
-    ["282285213953670", "3699945358564"],
-    ["117102", "135297"],
-    ["4247", "1049"],
-    ["247", "728"],
-    ["2=0--0---11--01=-100", "0"],
-];
+use anyhow::{Context, Result};
+use std::{collections::HashMap, fs};
+
+use itertools::Itertools;
+use serde_json::Value;
+
+pub fn load() -> Result<HashMap<usize, [Option<String>; 2]>> {
+    let data = fs::read_to_string("results.json")?;
+    let v: Value = serde_json::from_str(&data)?;
+    let mut days = HashMap::new();
+    for (day, results) in v.as_object().context("Invalid results file")? {
+        let day = day.parse::<usize>()?;
+
+        let results: Vec<String> = results
+            .as_array()
+            .context(format!("Invalid results file for day {day}"))?
+            .iter()
+            .filter_map(|result| match result {
+                Value::Bool(bool) => Some(bool.to_string()),
+                Value::Number(num) => Some(num.to_string()),
+                Value::String(str) => Some(str.clone()),
+                Value::Array(vec) => Some(
+                    vec.iter()
+                        .map(|v| {
+                            if let Value::String(s) = v {
+                                s.clone()
+                            } else {
+                                v.to_string()
+                            }
+                        })
+                        .join("\n"),
+                ),
+                _ => None,
+            })
+            .collect();
+        if results.len() == 2 {
+            days.insert(day, [Some(results[0].clone()), Some(results[1].clone())]);
+        } else if results.len() == 1 {
+            days.insert(day, [Some(results[0].clone()), None]);
+        }
+    }
+
+    Ok(days)
+}

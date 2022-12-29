@@ -1,0 +1,16 @@
+{
+  "1": [1, 2],
+  "2": [3],
+  "3": [
+    "string output",
+    [
+      "Multiline",
+      "string",
+      "output.",
+      "Each line",
+      "gets a newline",
+      "between themselves."
+    ]
+  ],
+  "4": ["Real results are omitted in this repository."]
+}
